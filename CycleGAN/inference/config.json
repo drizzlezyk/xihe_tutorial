@@ -1,0 +1,6 @@
+{
+	"model_path" : [
+		"MindSpore/CycleGAN_model/G_A_19.ckpt",
+		"MindSpore/CycleGAN_model/G_B_19.ckpt"
+	]
+}
