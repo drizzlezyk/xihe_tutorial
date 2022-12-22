@@ -1,0 +1,5 @@
+{
+	"model_path": [
+		"MindSpore/ResNet50_model/best.ckpt"
+	]
+}
