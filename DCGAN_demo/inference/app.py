@@ -1,51 +1,61 @@
+# Copyright 2022 Huawei Technologies Co., Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ============================================================================
+
+""" DCGAN inference """
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import gradio as gr
 import mindspore
 from PIL import Image
-from mindspore import nn, ops, context
-from mindvision import dataset
+from mindspore import nn, ops
 
-nc = 3                    # 图像彩色通道数
-nz = 100                  # 隐向量的长度
-ngf = 64                  # 特征图在生成器中的大小
 
 class Generator(nn.Cell):
     """DCGAN网络生成器"""
 
-    def __init__(self):
-        super(Generator, self).__init__()
+    def __init__(self, n_chanel=3, n_mid=100, ngf_layer=64):
+        super().__init__()
         self.generator = nn.SequentialCell(
-                nn.Conv2dTranspose(nz, ngf * 8, 4, 1, 'valid'),
-                nn.BatchNorm2d(ngf * 8),
+                nn.Conv2dTranspose(n_mid, ngf_layer * 8, 4, 1, 'valid'),
+                nn.BatchNorm2d(ngf_layer * 8),
                 nn.ReLU(),
-                nn.Conv2dTranspose(ngf * 8, ngf * 4, 4, 2, 'pad', 1),
-                nn.BatchNorm2d(ngf * 4),
+                nn.Conv2dTranspose(ngf_layer * 8, ngf_layer * 4, 4, 2, 'pad', 1),
+                nn.BatchNorm2d(ngf_layer * 4),
                 nn.ReLU(),
-                nn.Conv2dTranspose(ngf * 4, ngf * 2, 4, 2, 'pad', 1),
-                nn.BatchNorm2d(ngf * 2),
+                nn.Conv2dTranspose(ngf_layer * 4, ngf_layer * 2, 4, 2, 'pad', 1),
+                nn.BatchNorm2d(ngf_layer * 2),
                 nn.ReLU(),
-                nn.Conv2dTranspose(ngf * 2, ngf, 4, 2, 'pad', 1),
-                nn.BatchNorm2d(ngf),
+                nn.Conv2dTranspose(ngf_layer * 2, ngf_layer, 4, 2, 'pad', 1),
+                nn.BatchNorm2d(ngf_layer),
                 nn.ReLU(),
-                nn.Conv2dTranspose(ngf, nc, 4, 2, 'pad', 1),
+                nn.Conv2dTranspose(ngf_layer, n_chanel, 4, 2, 'pad', 1),
                 nn.Tanh()
             )
 
-    def construct(self, x):
-        return self.generator(x)
+    def construct(self, input_vector):
+        return self.generator(input_vector)
 
-# 实例化生成器
-generator = Generator()
-# 从文件中获取模型参数并加载到网络中
-param_dict = mindspore.load_checkpoint("./Generator.ckpt", generator)
 
 def generate_image(row_inputs=1, column_inputs=1):
     row_inputs = int(row_inputs)
     column_inputs = int(column_inputs)
-    fixed_noise = ops.StandardNormal()((row_inputs * column_inputs, nz, 1, 1))
+    fixed_noise = ops.StandardNormal()((row_inputs * column_inputs, 100, 1, 1))
     img64 = generator(fixed_noise).transpose(0, 2, 3, 1).asnumpy()
-    fig = plt.figure(figsize=(row_inputs, column_inputs), dpi=120)
+    plt.figure(figsize=(row_inputs, column_inputs), dpi=120)
     images = []
     for i in range(column_inputs):
         images.append(np.concatenate((img64[i * row_inputs:(i + 1) * row_inputs]), axis=1))
@@ -54,23 +64,25 @@ def generate_image(row_inputs=1, column_inputs=1):
     plt.imshow(img)
     plt.savefig("predict.jpg")
     return Image.open("predict.jpg")
-  
-row_inputs = gr.inputs.Number(5, label="the number of columns for images(number>=1)")
-column_inputs = gr.inputs.Number(5, label="the number of rows for images(number>=1)")
-outputs = gr.Image(label="generated image", shape=(10, 10))
 
-title = "Generate Animer"
-description = "Generate a number of images"
+
+# load model
+generator = Generator()
+param_dict = mindspore.load_checkpoint("./Generator.ckpt", generator)
+
+
+TITLE = "Generate Animer"
+DESC = "Generate a number of images"
 
 demo = gr.Interface(
     fn=generate_image,
-    inputs=[row_inputs, column_inputs],
-    outputs=outputs,
-    title=title,
-    description=description,
+    inputs=[gr.inputs.Number(5, label="the number of columns for images(number>=1)"),
+            gr.inputs.Number(5, label="the number of rows for images(number>=1)")],
+    outputs=gr.Image(label="generated image", shape=(10, 10)),
+    title=TITLE,
+    description=DESC,
 )
+
 
 if __name__ == "__main__":
     demo.launch()
-
-    
