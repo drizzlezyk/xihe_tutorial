@@ -1,0 +1,2 @@
+mindspore==1.8.1
+mindvision==0.1.0
